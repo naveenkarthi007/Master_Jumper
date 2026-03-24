@@ -1,255 +1,312 @@
-const GAME_WIDTH  = 480;
-const GAME_HEIGHT = 700;
-const GAME_SCALE = 1;
-const WORLD_WIDTH = GAME_WIDTH;
-const WORLD_HEIGHT = GAME_HEIGHT;
+function collision({ object1, object2 }) {
+  return (
+    object1.position.y + object1.height >= object2.position.y &&
+    object1.position.y <= object2.position.y + object2.height &&
+    object1.position.x <= object2.position.x + object2.width &&
+    object1.position.x + object1.width >= object2.position.x
+  );
+}
 
-class CollisionBlock {
-  constructor({ position, height = 16, width = 16 }) {
-    this.position = position
-    this.width = width
-    this.height = height
-  }
- 
-  draw() {
-    c.fillStyle = 'rgba(255, 0, 0, 0.5)'
-    c.fillRect(this.position.x, this.position.y, this.width, this.height)
-  }
-
-  update() {
-    this.draw()
-  }
+function platformCollision({ object1, object2 }) {
+  return (
+    object1.position.y + object1.height >= object2.position.y &&
+    object1.position.y + object1.height <=
+      object2.position.y + object2.height &&
+    object1.position.x <= object2.position.x + object2.width &&
+    object1.position.x + object1.width >= object2.position.x
+  );
 }
 
 class Sprite {
-  constructor({ position, imageSrc, frameRate = 1, animations, frameBuffer = 2, loop = true, autoplay = true }) {
-    this.position = position
-    this.image = new Image()
+  constructor({ position, imageSrc, frameRate = 1, frameBuffer = 3, scale = 1 }) {
+    this.position = position;
+    this.scale = scale;
+    this.loaded = false;
+    this.image = new Image();
     this.image.onload = () => {
-      this.loaded = true
-      this.width = this.image.width / this.frameRate
-      this.height = this.image.height
-    }
-    this.image.src = imageSrc
-    this.loaded = false
-    this.frameRate = frameRate
-    this.currentFrame = 0
-    this.elapsedFrames = 0
-    this.frameBuffer = frameBuffer
-    this.animations = animations
-    this.loop = loop
-    this.autoplay = autoplay
-    this.currentAnimation = null
-
-    if (this.animations) {
-      for (let key in this.animations) {
-        const image = new Image()
-        image.src = this.animations[key].imageSrc
-        this.animations[key].image = image
-      }
-    }
+      this.width = (this.image.width / this.frameRate) * this.scale;
+      this.height = this.image.height * this.scale;
+      this.loaded = true;
+    };
+    this.image.src = imageSrc;
+    this.frameRate = frameRate;
+    this.currentFrame = 0;
+    this.frameBuffer = frameBuffer;
+    this.elapsedFrames = 0;
+    this.flipX = false;
   }
 
   draw() {
-    if (!this.loaded) return
+    if (!this.image || !this.loaded) return;
     const cropbox = {
-      position: {
-        x: this.width * this.currentFrame,
-        y: 0,
-      },
-      width: this.width,
-      height: this.height,
+      position: { x: this.currentFrame * (this.image.width / this.frameRate), y: 0 },
+      width: this.image.width / this.frameRate,
+      height: this.image.height,
+    };
+    if (this.flipX) {
+      c.save();
+      c.translate(this.position.x + this.width, this.position.y);
+      c.scale(-1, 1);
+      c.drawImage(
+        this.image,
+        cropbox.position.x, cropbox.position.y, cropbox.width, cropbox.height,
+        0, 0, this.width, this.height,
+      );
+      c.restore();
+    } else {
+      c.drawImage(
+        this.image,
+        cropbox.position.x, cropbox.position.y, cropbox.width, cropbox.height,
+        this.position.x, this.position.y, this.width, this.height,
+      );
     }
+  }
 
-    c.drawImage(
-      this.image,
-      cropbox.position.x,
-      cropbox.position.y,
-      cropbox.width,
-      cropbox.height,
-      this.position.x,
-      this.position.y,
-      this.width,
-      this.height
-    )
-
-    this.updateFrames()
+  update() {
+    this.draw();
+    this.updateFrames();
   }
 
   updateFrames() {
-    if (!this.autoplay) return
-
-    this.elapsedFrames++
-
+    this.elapsedFrames++;
     if (this.elapsedFrames % this.frameBuffer === 0) {
-      if (this.currentFrame < this.frameRate - 1) this.currentFrame++
-      else if (this.loop) this.currentFrame = 0
+      if (this.currentFrame < this.frameRate - 1) this.currentFrame++;
+      else this.currentFrame = 0;
     }
   }
 }
 
 class Player extends Sprite {
-  constructor({ position, collisionBlocks = [], platformCollisionBlocks = [], imageSrc, frameRate, animations, loop }) {
-    super({ imageSrc, frameRate, animations, loop })
-    this.position = position
-    this.velocity = {
-      x: 0,
-      y: 0,
+  constructor({ position, collisionBlocks, platformCollisionBlocks, imageSrc, frameRate, scale = 0.75, animations }) {
+    super({ imageSrc, frameRate, scale });
+    this.position = position;
+    this.velocity = { x: 0, y: 1 };
+    this.collisionBlocks = collisionBlocks;
+    this.platformCollisionBlocks = platformCollisionBlocks;
+    this.hitbox = { position: { x: this.position.x, y: this.position.y }, width: 10, height: 10 };
+    this.isOnGround = false;
+    this.animations = animations;
+    this.lastDirection = "right";
+
+    for (let key in this.animations) {
+      const image = new Image();
+      image.src = this.animations[key].imageSrc;
+      this.animations[key].image = image;
     }
-    this.collisionBlocks = collisionBlocks
-    this.platformCollisionBlocks = platformCollisionBlocks
-    this.hitbox = {
-      position: {
-        x: this.position.x,
-        y: this.position.y,
-      },
-      width: 10,
-      height: 10,
+
+    this.camerabox = { position: { x: this.position.x, y: this.position.y }, width: 60, height: 60 };
+  }
+
+  switchSprite(key) {
+    if (this.image === this.animations[key].image || !this.loaded) return;
+    this.currentFrame = 0;
+    this.image = this.animations[key].image;
+    this.frameBuffer = this.animations[key].frameBuffer;
+    this.frameRate = this.animations[key].frameRate;
+  }
+
+  draw() {
+    if (typeof flyPowerActive !== "undefined" && flyPowerActive) return;
+    if (!this.image || !this.loaded) return;
+
+    const rotation = this.portalRotation || 0;
+    const scale = this.suckScale || 1;
+    const stretchX = this.portalStretchX || 1;
+    const stretchY = this.portalStretchY || 1;
+    const hasPortalFx = rotation !== 0 || scale !== 1 || stretchX !== 1 || stretchY !== 1;
+
+    if (!hasPortalFx) {
+      super.draw();
+      return;
     }
-    this.animations = animations
-    this.lastDirection = 'right'
-    this.isOnGround = false
+
+    const cropbox = {
+      position: { x: this.currentFrame * (this.image.width / this.frameRate), y: 0 },
+      width: this.image.width / this.frameRate,
+      height: this.image.height,
+    };
+
+    c.save();
+    const centerX = this.position.x + this.width / 2;
+    const centerY = this.position.y + this.height / 2;
+    const flip = this.flipX ? -1 : 1;
+
+    c.translate(centerX, centerY);
+    c.rotate(rotation);
+    c.scale(scale * stretchX * flip, scale * stretchY);
+
+    c.drawImage(
+      this.image,
+      cropbox.position.x, cropbox.position.y, cropbox.width, cropbox.height,
+      -this.width / 2, -this.height / 2, this.width, this.height,
+    );
+    c.restore();
+  }
+
+  updateCamerabox() {
+    this.camerabox = {
+      position: { x: this.position.x - 22, y: this.position.y - 100 },
+      width: 90, height: 160,
+    };
+  }
+
+  checkForHorizontalCanvasCollision() {
+    if (
+      this.hitbox.position.x + this.hitbox.width + this.velocity.x >= WORLD_WIDTH ||
+      this.hitbox.position.x + this.velocity.x <= 0
+    ) {
+      this.velocity.x = 0;
+    }
+  }
+
+  shouldPanCameraDown({ canvas, camera }) {
+    const visibleTopY = -camera.position.y;
+    if (this.camerabox.position.y <= visibleTopY) {
+      camera.position.y -= this.velocity.y;
+    }
+  }
+
+  shouldPanCameraUp({ canvas, camera }) {
+    const scaledCanvasHeight = canvas.height / GAME_SCALE;
+    const visibleBottomY = -camera.position.y + scaledCanvasHeight;
+    if (this.camerabox.position.y + this.camerabox.height >= visibleBottomY) {
+      camera.position.y -= this.velocity.y;
+    }
   }
 
   update() {
-    this.position.x += this.velocity.x
-
-    this.updateHitbox()
-    this.checkForHorizontalCollision()
-    this.applyGravity()
-
-    this.updateHitbox()
-    this.checkForVerticalCollision()
-  }
-
-  handleInput(keys) {
-    if (this.preventInput) return
-    this.velocity.x = 0
-    if (keys.d.pressed) {
-      this.switchSprite('RunRight')
-      this.velocity.x = 5
-      this.lastDirection = 'right'
-    } else if (keys.a.pressed) {
-      this.switchSprite('RunLeft')
-      this.velocity.x = -5
-      this.lastDirection = 'left'
-    } else {
-      if (this.lastDirection === 'right') this.switchSprite('IdleRight')
-      else this.switchSprite('IdleLeft')
-    }
-  }
-
-  switchSprite(name) {
-    if (this.image === this.animations[name].image) return
-    this.currentFrame = 0
-    this.image = this.animations[name].image
-    this.frameRate = this.animations[name].frameRate
-    this.frameBuffer = this.animations[name].frameBuffer
-    this.loop = this.animations[name].loop
-    this.currentAnimation = this.animations[name]
+    this.updateFrames();
+    this.updateHitbox();
+    this.updateCamerabox();
+    this.draw();
+    this.position.x += this.velocity.x;
+    this.updateHitbox();
+    this.checkForHorizontalCollisions();
+    this.applyGravity();
+    this.updateHitbox();
+    this.checkForVerticalCollisions();
   }
 
   updateHitbox() {
     this.hitbox = {
-      position: {
-        x: this.position.x + 58,
-        y: this.position.y + 34,
-      },
-      width: 50,
-      height: 53,
-    }
+      position: { x: this.position.x + 52, y: this.position.y + 39 },
+      width: 21, height: 41,
+    };
   }
 
-  checkForHorizontalCollision() {
+  checkForHorizontalCollisions() {
     for (let i = 0; i < this.collisionBlocks.length; i++) {
-      const collisionBlock = this.collisionBlocks[i]
-
-      if (
-        this.hitbox.position.x <= collisionBlock.position.x + collisionBlock.width &&
-        this.hitbox.position.x + this.hitbox.width >= collisionBlock.position.x &&
-        this.hitbox.position.y + this.hitbox.height >= collisionBlock.position.y &&
-        this.hitbox.position.y <= collisionBlock.position.y + collisionBlock.height
-      ) {
-        if (this.velocity.x < -0) {
-          const offset = this.hitbox.position.x - this.position.x
-          this.position.x = collisionBlock.position.x + collisionBlock.width - offset + 0.01
-          break
-        }
-
+      const block = this.collisionBlocks[i];
+      if (collision({ object1: this.hitbox, object2: block })) {
         if (this.velocity.x > 0) {
-          const offset = this.hitbox.position.x - this.position.x + this.hitbox.width
-          this.position.x = collisionBlock.position.x - offset - 0.01
-          break
+          this.velocity.x = 0;
+          const offset = this.hitbox.position.x - this.position.x + this.hitbox.width;
+          this.position.x = block.position.x - offset - 0.01;
+          break;
+        }
+        if (this.velocity.x < 0) {
+          this.velocity.x = 0;
+          const offset = this.hitbox.position.x - this.position.x;
+          this.position.x = block.position.x + block.width - offset + 0.01;
+          break;
         }
       }
     }
   }
 
   applyGravity() {
-    this.velocity.y += gravity
-    this.position.y += this.velocity.y
+    this.velocity.y += gravity;
+    this.position.y += this.velocity.y;
   }
 
-  checkForVerticalCollision() {
+  checkForVerticalCollisions() {
+    this.isOnGround = false;
+
     for (let i = 0; i < this.collisionBlocks.length; i++) {
-      const collisionBlock = this.collisionBlocks[i]
-
-      if (
-        this.hitbox.position.x <= collisionBlock.position.x + collisionBlock.width &&
-        this.hitbox.position.x + this.hitbox.width >= collisionBlock.position.x &&
-        this.hitbox.position.y + this.hitbox.height >= collisionBlock.position.y &&
-        this.hitbox.position.y <= collisionBlock.position.y + collisionBlock.height
-      ) {
-        if (this.velocity.y < 0) {
-          this.velocity.y = 0
-          const offset = this.hitbox.position.y - this.position.y
-          this.position.x = collisionBlock.position.y + collisionBlock.height - offset + 0.01
-          break
-        }
-
+      const block = this.collisionBlocks[i];
+      if (collision({ object1: this.hitbox, object2: block })) {
         if (this.velocity.y > 0) {
-          this.velocity.y = 0
-          this.isOnGround = true
-          const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
-          this.position.y = collisionBlock.position.y - offset - 0.01
-          break
+          this.velocity.y = 0;
+          this.isOnGround = true;
+          const offset = this.hitbox.position.y - this.position.y + this.hitbox.height;
+          this.position.y = block.position.y - offset - 0.01;
+          break;
+        }
+        if (this.velocity.y < 0) {
+          this.velocity.y = 0;
+          const offset = this.hitbox.position.y - this.position.y;
+          this.position.y = block.position.y + block.height - offset + 0.01;
+          break;
         }
       }
     }
 
     for (let i = 0; i < this.platformCollisionBlocks.length; i++) {
-        const platformCollisionBlock = this.platformCollisionBlocks[i]
-  
-        if (
-          platformCollisionBlock.position.y + platformCollisionBlock.height <= this.hitbox.position.y + this.hitbox.height &&
-          this.hitbox.position.x <= platformCollisionBlock.position.x + platformCollisionBlock.width &&
-          this.hitbox.position.x + this.hitbox.width >= platformCollisionBlock.position.x &&
-          this.hitbox.position.y + this.hitbox.height >= platformCollisionBlock.position.y &&
-          this.hitbox.position.y <= platformCollisionBlock.position.y + platformCollisionBlock.height
-        ) {
-           if (this.velocity.y > 0) {
-            this.velocity.y = 0
-            this.isOnGround = true
-            const offset = this.hitbox.position.y - this.position.y + this.hitbox.height
-            this.position.y = platformCollisionBlock.position.y - offset - 0.01
-            break
-          }
+      const block = this.platformCollisionBlocks[i];
+      if (platformCollision({ object1: this.hitbox, object2: block })) {
+        if (this.velocity.y > 0) {
+          this.velocity.y = 0;
+          this.isOnGround = true;
+          const offset = this.hitbox.position.y - this.position.y + this.hitbox.height;
+          this.position.y = block.position.y - offset - 0.01;
+          break;
         }
       }
-  }
-
-  shouldPanCameraDown({ camera, canvas }) {
-      if (this.velocity.y < 0) return
-  }
-
-  shouldPanCameraUp({ camera, canvas }) {
-      if (this.velocity.y > 0) return
-  }
-
-  checkForHorizontalCanvasCollision(){
-    if (this.position.x + this.width + this.velocity.x >= GAME_WIDTH || 
-        this.position.x + this.velocity.x <= 0) {
-        this.velocity.x = 0
     }
+  }
+}
+
+const COLLECTIBLE_SIZE = { coin: 14, heart: 14 };
+
+class Collectible extends Sprite {
+  constructor({ position, type = "coin" }) {
+    const src = type === "heart" ? "./assets/img/heart.png" : "./assets/img/coin.png";
+    super({ imageSrc: src, frameRate: 1, frameBuffer: 1, scale: 1 });
+    this.position = { x: position.x, y: position.y };
+    this.type = type;
+    this.collected = false;
+    this._displaySize = COLLECTIBLE_SIZE[type] ?? 14;
+    this._baseY = position.y;
+    this._bobTime = Math.random() * Math.PI * 2;
+    this._popScale = 1;
+    this._popping = false;
+    this._popFrames = 0;
+    this.radius = 7;
+  }
+
+  collect() {
+    if (this.collected) return;
+    this.collected = true;
+    this._popping = true;
+    this._popFrames = 12;
+  }
+
+  update() {
+    if (this.collected && !this._popping) return;
+    if (!this.collected) {
+      this._bobTime += 0.06;
+      this.position.y = this._baseY + Math.sin(this._bobTime) * 2;
+    }
+    if (this._popping) {
+      this._popFrames--;
+      this._popScale += 0.12;
+      if (this._popFrames <= 0) this._popping = false;
+    }
+    this.updateFrames();
+    this._drawSelf();
+  }
+
+  _drawSelf() {
+    if (!this.loaded) return;
+    const src = this.image.width;
+    const base = this._displaySize;
+    const size = base * this._popScale;
+    const dx = this.position.x + (base - size) / 2;
+    const dy = this.position.y + (base - size) / 2;
+    const alpha = this._popping ? Math.max(0, this._popFrames / 12) : 1;
+    c.save();
+    c.globalAlpha = alpha;
+    c.drawImage(this.image, 0, 0, src, src, dx, dy, size, size);
+    c.restore();
   }
 }
