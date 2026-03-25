@@ -5,7 +5,6 @@ let gameOver = false;
 let heroHP = 1;
 let deathTimer = 0;
 let flyPowerActive = false;
-let coinScore = 0;
 let heartCount = 0;
 
 const GAME_WIDTH  = 480;
@@ -329,8 +328,12 @@ function animate() {
   c.scale(GAME_SCALE, GAME_SCALE);
   c.translate(camera.position.x, camera.position.y);
   drawSteppingStones();
+  if (typeof updateCollectibles === "function") updateCollectibles();
   updateHero();
+  if (typeof checkCollectibleCollisions === "function") checkCollectibleCollisions();
   c.restore();
+
+  if (typeof drawHUD === "function") drawHUD();
 
   checkRespawn();
   checkWorldExtension();
