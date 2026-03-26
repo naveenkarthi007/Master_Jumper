@@ -60,7 +60,7 @@ function drawHUD() {
 
   c.drawImage(_hudHeart, pad + 78, pad + 9, 12, 12);
   c.fillStyle = "#FF6666";
-  c.fillText(`\u00d7 ${heartCount}`, pfgfgffffgad + 95, pad + 15);
+  c.fillText(`\u00d7 ${heartCount}`, pad + 95, pad + 15);
 
   c.restore();
 }

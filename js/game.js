@@ -1,7 +1,6 @@
 const canvas = document.querySelector("canvas");
 const c = canvas.getContext("2d");
 
-let flyPowerActive = false;
 let heartCount = 0;
 
 const GAME_WIDTH  = 480;
@@ -181,11 +180,11 @@ function updateHero() {
 
   player.velocity.x = 0;
   if (keys.d.pressed) {
-    if (!isAttacking && !flyPowerActive) player.switchSprite("Run");
+    if (!isAttacking && (typeof flyPowerActive === "undefined" || !flyPowerActive)) player.switchSprite("Run");
     player.velocity.x = 2.5;
     player.lastDirection = "right";
   } else if (keys.a.pressed) {
-    if (!isAttacking && !flyPowerActive) player.switchSprite("RunLeft");
+    if (!isAttacking && (typeof flyPowerActive === "undefined" || !flyPowerActive)) player.switchSprite("RunLeft");
     player.velocity.x = -2.5;
     player.lastDirection = "left";
   } else if (player.velocity.y === 0 && !isAttacking) {
@@ -193,11 +192,11 @@ function updateHero() {
     else player.switchSprite("IdleLeft");
   }
 
-  if (player.velocity.y < 0 && !isAttacking && !flyPowerActive) {
+  if (player.velocity.y < 0 && !isAttacking && (typeof flyPowerActive === "undefined" || !flyPowerActive)) {
     player.shouldPanCameraDown({ camera, canvas });
     if (player.lastDirection === "right") player.switchSprite("Jump");
     else player.switchSprite("JumpLeft");
-  } else if (player.velocity.y > 0 && !isAttacking && !flyPowerActive) {
+  } else if (player.velocity.y > 0 && !isAttacking && (typeof flyPowerActive === "undefined" || !flyPowerActive)) {
     player.shouldPanCameraUp({ camera, canvas });
     if (player.lastDirection === "right") player.switchSprite("Fall");
     else player.switchSprite("FallLeft");
@@ -207,7 +206,7 @@ function updateHero() {
     player.shouldPanCameraUp({ camera, canvas });
   }
 
-  if (flyPowerActive && !isAttacking) {
+  if (typeof flyPowerActive !== "undefined" && flyPowerActive && !isAttacking) {
     if (player.lastDirection === "right") player.switchSprite("Idle");
     else player.switchSprite("IdleLeft");
   }
@@ -342,12 +341,16 @@ function animate() {
   if (typeof updateCollectibles === "function") updateCollectibles();
   if (typeof updateBats === "function") updateBats();
   if (typeof drawHeroHitEffect === "function") drawHeroHitEffect();
+  if (typeof updateFlyPower === "function") updateFlyPower();
   updateHero();
+  if (typeof drawWingSprites === "function") drawWingSprites();
+  if (typeof drawFlyPowerEffects === "function") drawFlyPowerEffects();
   if (typeof checkCollectibleCollisions === "function") checkCollectibleCollisions();
   c.restore();
 
   if (typeof drawHUD === "function") drawHUD();
   if (typeof drawHPHearts === "function") drawHPHearts();
+  if (typeof drawFlyButton === "function") drawFlyButton();
   if (typeof drawGameOverScreen === "function") drawGameOverScreen();
 
   checkRespawn();
