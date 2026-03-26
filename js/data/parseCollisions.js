@@ -1,7 +1,3 @@
-// ============================================================
-//  Parse raw collision arrays into CollisionBlock objects
-// ============================================================
-
 const floorCollisions2D = [];
 for (let i = 0; i < floorCollisions.length; i += WORLD_COLS) {
   floorCollisions2D.push(floorCollisions.slice(i, i + WORLD_COLS));
@@ -17,12 +13,6 @@ floorCollisions2D.forEach((row, y) => {
     }
   });
 });
-
-//── latormlisi bok ───────────────
-// nst f sinvdl 1ieeE cisi
-// bockprep te ateul l wd
-// (icudgoerha Thnsreh ang ara lins 
-// exatly wit wt te ple sees o screen
 
 const platformCollisionBlocks = [];
 

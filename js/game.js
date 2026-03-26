@@ -1,9 +1,6 @@
 const canvas = document.querySelector("canvas");
 const c = canvas.getContext("2d");
 
-let gameOver = false;
-let heroHP = 1;
-let deathTimer = 0;
 let flyPowerActive = false;
 let heartCount = 0;
 
@@ -269,6 +266,15 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
+window.addEventListener("keydown", (event) => {
+  if (!gameOver) return;
+  if (event.repeat) return;
+  if (typeof deathTimer === "number" && typeof DEATH_DELAY === "number") {
+    if (deathTimer <= DEATH_DELAY) return;
+  }
+  location.reload();
+});
+
 window.addEventListener("keyup", (event) => {
   switch (event.key) {
     case "d": case "ArrowRight": keys.d.pressed = false; break;
@@ -324,16 +330,25 @@ function animate() {
 
   drawBackground();
 
+  if (gameOver) {
+    if (typeof drawGameOverScreen === "function") drawGameOverScreen();
+    return;
+  }
+
   c.save();
   c.scale(GAME_SCALE, GAME_SCALE);
   c.translate(camera.position.x, camera.position.y);
   drawSteppingStones();
   if (typeof updateCollectibles === "function") updateCollectibles();
+  if (typeof updateBats === "function") updateBats();
+  if (typeof drawHeroHitEffect === "function") drawHeroHitEffect();
   updateHero();
   if (typeof checkCollectibleCollisions === "function") checkCollectibleCollisions();
   c.restore();
 
   if (typeof drawHUD === "function") drawHUD();
+  if (typeof drawHPHearts === "function") drawHPHearts();
+  if (typeof drawGameOverScreen === "function") drawGameOverScreen();
 
   checkRespawn();
   checkWorldExtension();
