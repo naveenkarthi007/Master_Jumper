@@ -3,21 +3,24 @@ const gravity = 0.07;
 const player = new Player({
   position: {
     x: Math.floor((WORLD_WIDTH - 40) / 2),
-    y: WORLD_HEIGHT - 80,
+    y: WORLD_HEIGHT - 115, // Spawn above the ground
   },
   collisionBlocks,
   platformCollisionBlocks,
   imageSrc: "./assets/img/warrior/Idle.png",
   frameRate: 8,
   animations: {
-    Idle:     { imageSrc: "./assets/img/warrior/Idle.png",     frameRate: 8, frameBuffer: 3 },
+    Idle:     { imageSrc: "./assets/img/warrior/Idle.png",     frameRate: 8, frameBuffer: 10 },
     Run:      { imageSrc: "./assets/img/warrior/Run.png",      frameRate: 8, frameBuffer: 5 },
     Jump:     { imageSrc: "./assets/img/warrior/Jump.png",     frameRate: 2, frameBuffer: 3 },
     Fall:     { imageSrc: "./assets/img/warrior/Fall.png",     frameRate: 2, frameBuffer: 3 },
     FallLeft: { imageSrc: "./assets/img/warrior/FallLeft.png", frameRate: 2, frameBuffer: 3 },
     RunLeft:  { imageSrc: "./assets/img/warrior/RunLeft.png",  frameRate: 8, frameBuffer: 5 },
-    IdleLeft: { imageSrc: "./assets/img/warrior/IdleLeft.png", frameRate: 8, frameBuffer: 3 },
+    IdleLeft: { imageSrc: "./assets/img/warrior/IdleLeft.png", frameRate: 8, frameBuffer: 10 },
     JumpLeft: { imageSrc: "./assets/img/warrior/JumpLeft.png", frameRate: 2, frameBuffer: 3 },
+    Attack1:  { imageSrc: "./assets/img/warrior/Attack1.png",  frameRate: 4, frameBuffer: 8 },
+    Attack2:  { imageSrc: "./assets/img/warrior/Attack2.png",  frameRate: 4, frameBuffer: 8 },
+    Attack3:  { imageSrc: "./assets/img/warrior/Attack3.png",  frameRate: 4, frameBuffer: 8 },
   },
 });
 
@@ -53,7 +56,7 @@ function updateHero() {
 function checkRespawn() {
   if (player.position.y > WORLD_HEIGHT + 100) {
     player.position.x = Math.floor((WORLD_WIDTH - 40) / 2);
-    player.position.y = WORLD_HEIGHT - 80;
+    player.position.y = WORLD_HEIGHT - 115; // Match the starting position
     player.velocity.y = 0;
     camera.position.y = -(WORLD_HEIGHT - scaledCanvas.height);
   }
