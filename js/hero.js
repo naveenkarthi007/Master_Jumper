@@ -2,7 +2,7 @@ const gravity = 0.07;
 
 const player = new Player({
   position: {
-    x: Math.floor((WORLD_WIDTH - 40) / 2),
+    x: Math.floor(WORLD_WIDTH / 2 - 62), // Center the hero on screen
     y: WORLD_HEIGHT - 115, // Spawn above the ground
   },
   collisionBlocks,
@@ -55,7 +55,7 @@ function updateHero() {
 
 function checkRespawn() {
   if (player.position.y > WORLD_HEIGHT + 100) {
-    player.position.x = Math.floor((WORLD_WIDTH - 40) / 2);
+    player.position.x = Math.floor(WORLD_WIDTH / 2 - 62); // Center the hero
     player.position.y = WORLD_HEIGHT - 115; // Match the starting position
     player.velocity.y = 0;
     camera.position.y = -(WORLD_HEIGHT - scaledCanvas.height);
